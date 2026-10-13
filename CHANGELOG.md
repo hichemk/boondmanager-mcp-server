@@ -5,6 +5,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Références (expériences professionnelles) des candidats : `boond_candidates_reference_create`, `boond_candidates_reference_update`, `boond_candidates_reference_delete`.** Les trois outils de références n'existaient que pour les ressources ; pour un candidat, réécrire les expériences importées d'un CV obligeait à passer par l'interface BoondManager. Les références d'un candidat sont embarquées dans `/candidates/{id}/technical-data` exactement comme celles d'une ressource : même read-modify-write du tableau `references`, même nettoyage des dates vides (que l'API renvoie en lecture mais refuse en écriture, `1002`), même confirmation par élicitation avant suppression. Les helpers `fetchTechnicalDataReferences` / `putTechnicalDataReferences` sont généralisés à un propriétaire (`/resources` ou `/candidates`) plutôt que dupliqués. Vérifié sur un tenant de production : un PUT du tableau complet crée les références sans `id`, conserve les autres par `id` et retire celles qui sont omises. Aucun nom d'outil existant ne change. Catalogue : 241 outils.
+
 ## [2.19.1] - 2026-10-08
 
 Correctif : `boond_documents_create` accepte tout type d'entité parente (besoins et positionnements inclus). Mises à jour de dépendances, dont `@modelcontextprotocol/sdk` 1.30.1 → 1.31.0 (révision de protocole négociée inchangée : `2025-11-25`). Aucun nom d'outil ne change. Catalogue : 238 outils.

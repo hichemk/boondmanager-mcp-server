@@ -199,6 +199,7 @@ export const USAGE_GUIDANCE: Record<string, UsageGuidance> = {
     when: "pour coder le dossier technique d'un candidat (profils, secteurs, outils, langues, expérience, formation).",
     instead:
       "`boond_candidates_update` pour l'onglet Information (coordonnées, disponibilité, mobilité, évaluation) ; " +
+      "`boond_candidates_reference_create` / `_update` / `_delete` pour les expériences professionnelles ; " +
       "`boond_resources_technical_data_update` pour un collaborateur interne.",
   },
   boond_candidates_administrative_update: {
@@ -217,6 +218,20 @@ export const USAGE_GUIDANCE: Record<string, UsageGuidance> = {
   boond_resources_reference_delete: {
     when: "pour retirer une expérience saisie par erreur, sur demande explicite de l'utilisateur.",
     instead: "`boond_resources_reference_update` pour corriger une référence plutôt que la détruire.",
+  },
+  boond_candidates_reference_create: {
+    when: "pour ajouter une expérience professionnelle (mission, poste) au dossier technique d'un candidat.",
+    instead:
+      "`boond_candidates_technical_data_update` pour les autres blocs du dossier technique (compétences, " +
+      "outils, formations, langues), que cet outil ne touche pas ; `boond_resources_reference_create` pour un collaborateur interne.",
+  },
+  boond_candidates_reference_update: {
+    when: "pour réécrire ou compléter une expérience professionnelle existante d'un candidat.",
+    instead: "`boond_candidates_reference_create` pour en ajouter une nouvelle.",
+  },
+  boond_candidates_reference_delete: {
+    when: "pour retirer une expérience en doublon ou saisie par erreur, sur demande explicite de l'utilisateur.",
+    instead: "`boond_candidates_reference_update` pour corriger une référence plutôt que la détruire.",
   },
 
   // ---- audit ----

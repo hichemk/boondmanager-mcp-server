@@ -830,21 +830,40 @@ const referenceYear = z.coerce
   .max(2100)
   .describe("Année (ex: 2024). Accepte int ou string '2024'.");
 
+// Field shapes shared by the resource and candidate variants (issue: candidate
+// references). Both entities embed their references in the same DT payload, so
+// only the owner key and its wording differ.
+const referenceCreateShape = {
+  title: z.string().min(1).describe("Intitulé du poste."),
+  company: z.string().min(1).describe("Société / employeur."),
+  description: z
+    .string()
+    .min(1)
+    .describe("Description / missions / réalisations. ⚠️ Requis côté API Boond (1017 sans)."),
+  location: z.string().optional().describe("Lieu (ville)."),
+  startMonth: referenceMonth.optional(),
+  startYear: referenceYear.optional(),
+  endMonth: referenceMonth.optional(),
+  endYear: referenceYear.optional(),
+  skills: z.string().optional().describe("Compétences mobilisées (texte libre, séparées par virgule)."),
+};
+
+const referenceUpdateShape = {
+  title: z.string().optional().describe("Intitulé du poste."),
+  company: z.string().optional().describe("Société / employeur."),
+  description: z.string().optional().describe("Description / missions / réalisations."),
+  location: z.string().optional().describe("Lieu (ville)."),
+  startMonth: referenceMonth.optional(),
+  startYear: referenceYear.optional(),
+  endMonth: referenceMonth.optional(),
+  endYear: referenceYear.optional(),
+  skills: z.string().optional().describe("Compétences mobilisées."),
+};
+
 export const ReferenceCreateSchema = z
   .object({
     resourceId: EntityIdSchema.describe("ID de la ressource à laquelle rattacher la référence."),
-    title: z.string().min(1).describe("Intitulé du poste."),
-    company: z.string().min(1).describe("Société / employeur."),
-    description: z
-      .string()
-      .min(1)
-      .describe("Description / missions / réalisations. ⚠️ Requis côté API Boond (1017 sans)."),
-    location: z.string().optional().describe("Lieu (ville)."),
-    startMonth: referenceMonth.optional(),
-    startYear: referenceYear.optional(),
-    endMonth: referenceMonth.optional(),
-    endYear: referenceYear.optional(),
-    skills: z.string().optional().describe("Compétences mobilisées (texte libre, séparées par virgule)."),
+    ...referenceCreateShape,
   })
   .strict();
 
@@ -854,15 +873,7 @@ export const ReferenceUpdateSchema = z
       "ID de la ressource portant la référence (les references sont embarquées dans le DT)."
     ),
     referenceId: EntityIdSchema.describe("ID de la référence à modifier."),
-    title: z.string().optional().describe("Intitulé du poste."),
-    company: z.string().optional().describe("Société / employeur."),
-    description: z.string().optional().describe("Description / missions / réalisations."),
-    location: z.string().optional().describe("Lieu (ville)."),
-    startMonth: referenceMonth.optional(),
-    startYear: referenceYear.optional(),
-    endMonth: referenceMonth.optional(),
-    endYear: referenceYear.optional(),
-    skills: z.string().optional().describe("Compétences mobilisées."),
+    ...referenceUpdateShape,
   })
   .strict();
 
@@ -870,6 +881,36 @@ export const ReferenceIdSchema = z
   .object({
     resourceId: EntityIdSchema.describe(
       "ID de la ressource portant la référence (les references sont embarquées dans le DT)."
+    ),
+    referenceId: EntityIdSchema.describe("ID de la référence à supprimer."),
+  })
+  .strict();
+
+// Candidates carry the same embedded `references` array on
+// `/candidates/{id}/technical-data` (verified live on a production tenant: a PUT
+// with the full array creates the id-less entries, keeps the others by id, and
+// drops the ones left out).
+export const CandidateReferenceCreateSchema = z
+  .object({
+    candidateId: EntityIdSchema.describe("ID du candidat auquel rattacher la référence."),
+    ...referenceCreateShape,
+  })
+  .strict();
+
+export const CandidateReferenceUpdateSchema = z
+  .object({
+    candidateId: EntityIdSchema.describe(
+      "ID du candidat portant la référence (les references sont embarquées dans le DT)."
+    ),
+    referenceId: EntityIdSchema.describe("ID de la référence à modifier."),
+    ...referenceUpdateShape,
+  })
+  .strict();
+
+export const CandidateReferenceIdSchema = z
+  .object({
+    candidateId: EntityIdSchema.describe(
+      "ID du candidat portant la référence (les references sont embarquées dans le DT)."
     ),
     referenceId: EntityIdSchema.describe("ID de la référence à supprimer."),
   })
@@ -2680,6 +2721,9 @@ export type CandidateAdministrativeUpdateInput = z.infer<typeof CandidateAdminis
 export type ReferenceCreateInput = z.infer<typeof ReferenceCreateSchema>;
 export type ReferenceUpdateInput = z.infer<typeof ReferenceUpdateSchema>;
 export type ReferenceIdInput = z.infer<typeof ReferenceIdSchema>;
+export type CandidateReferenceCreateInput = z.infer<typeof CandidateReferenceCreateSchema>;
+export type CandidateReferenceUpdateInput = z.infer<typeof CandidateReferenceUpdateSchema>;
+export type CandidateReferenceIdInput = z.infer<typeof CandidateReferenceIdSchema>;
 export type DocumentCreateInput = z.infer<typeof DocumentCreateSchema>;
 export type DocumentUploadSlotInput = z.infer<typeof DocumentUploadSlotSchema>;
 export type ReportingCompaniesInput = z.infer<typeof ReportingCompaniesSchema>;

@@ -42,9 +42,9 @@ describe("registerCandidateTools", () => {
     expect(method).toBe("PUT");
   });
 
-  it("should register CRUD tools + 5 tab tools + 2 tab-write tools = 12 total", () => {
+  it("should register CRUD tools + 5 tab tools + 2 tab-write tools + 3 reference tools = 15 total", () => {
     registerCandidateTools(server);
-    expect(server.registerTool).toHaveBeenCalledTimes(12);
+    expect(server.registerTool).toHaveBeenCalledTimes(15);
   });
 
   describe("boond_candidates_technical_data_update", () => {
@@ -114,6 +114,179 @@ describe("registerCandidateTools", () => {
       };
       expect(res.content[0].text).toContain("non confirmés");
       expect(res.content[0].text).toContain("experience, summary");
+    });
+  });
+
+  // Candidates embed their references in /candidates/{id}/technical-data exactly
+  // like resources do: every reference write is a GET-then-PUT of the full array.
+  describe("candidate references", () => {
+    type Ref = Record<string, unknown>;
+    type PutBody = { data: { id: string; type: string; attributes: { references: Ref[] } } };
+
+    function mockDtRefs(refs: Ref[], options: { assignIds?: boolean } = {}) {
+      return vi.spyOn(boondClient, "apiRequest").mockImplementation(async (_path, method, body) => {
+        if (method === undefined || method === "GET") {
+          return { data: { id: "691", type: "candidate", attributes: { references: refs } } } as never;
+        }
+        const sent = (body as PutBody | undefined)?.data.attributes.references ?? refs;
+        let n = 9000;
+        const next = options.assignIds ? sent.map((r) => (r.id === undefined ? { ...r, id: String(n++) } : r)) : sent;
+        return { data: { id: "691", type: "candidate", attributes: { references: next } } } as never;
+      });
+    }
+
+    function textOf(result: unknown): string {
+      return (result as { content: Array<{ text: string }> }).content[0]?.text ?? "";
+    }
+
+    it("registers the three tools with accurate annotations", () => {
+      registerCandidateTools(server);
+      const byName = new Map(vi.mocked(server.registerTool).mock.calls.map((c) => [c[0], c[1]]));
+      expect(byName.get("boond_candidates_reference_create")?.annotations).toMatchObject({
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+      });
+      expect(byName.get("boond_candidates_reference_update")?.annotations).toMatchObject({
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      });
+      expect(byName.get("boond_candidates_reference_delete")?.annotations).toMatchObject({
+        readOnlyHint: false,
+        destructiveHint: true,
+      });
+    });
+
+    it("create: appends to the candidate DT, scrubs empty dates, reports the new id", async () => {
+      registerCandidateTools(server);
+      const apiSpy = mockDtRefs(
+        [
+          {
+            id: "5784",
+            title: "Coach ressource",
+            company: "CWF",
+            description: "x",
+            startMonth: "1",
+            endMonth: "",
+            endYear: "",
+          },
+        ],
+        { assignIds: true }
+      );
+      const result = await getHandler(
+        server,
+        "boond_candidates_reference_create"
+      )({
+        candidateId: "691",
+        title: "Scrum Master",
+        company: "AMF",
+        description: "Accompagnement Scrum",
+        startMonth: 9,
+        startYear: 2020,
+      });
+
+      expect(apiSpy.mock.calls[0]?.[0]).toBe("/candidates/691/technical-data");
+      const [path, method, body] = apiSpy.mock.calls[1] ?? [];
+      expect(path).toBe("/candidates/691/technical-data");
+      expect(method).toBe("PUT");
+      const data = (body as PutBody).data;
+      expect(data.type).toBe("candidate");
+      expect(data.id).toBe("691");
+      expect(data.attributes.references).toHaveLength(2);
+      // Boond rejects "" on PUT (1002): the echoed empty dates must not be sent back.
+      expect(data.attributes.references[0]).not.toHaveProperty("endMonth");
+      expect(data.attributes.references[0]).not.toHaveProperty("endYear");
+      expect(data.attributes.references[1]).toMatchObject({ title: "Scrum Master", startMonth: 9, startYear: 2020 });
+      expect(data.attributes.references[1]).not.toHaveProperty("candidateId");
+      expect(textOf(result)).toMatch(/ID: 9000/);
+    });
+
+    it("update: patches only the provided fields of the targeted reference", async () => {
+      registerCandidateTools(server);
+      const apiSpy = mockDtRefs([
+        { id: "5785", title: "Coach", company: "Wado", description: "old", startYear: "2024" },
+        { id: "5786", title: "Indépendant", company: "Wado", description: "dup" },
+      ]);
+      await getHandler(
+        server,
+        "boond_candidates_reference_update"
+      )({
+        candidateId: "691",
+        referenceId: "5785",
+        description: "new",
+      });
+      const refs = (apiSpy.mock.calls[1]?.[2] as PutBody).data.attributes.references;
+      expect(refs[0]).toEqual({ id: "5785", title: "Coach", company: "Wado", description: "new", startYear: "2024" });
+      expect(refs[1]).toEqual({ id: "5786", title: "Indépendant", company: "Wado", description: "dup" });
+    });
+
+    it("update: unknown referenceId is an error listing the ids, with no PUT", async () => {
+      registerCandidateTools(server);
+      const apiSpy = mockDtRefs([{ id: "5785", title: "Coach" }]);
+      const result = await getHandler(
+        server,
+        "boond_candidates_reference_update"
+      )({
+        candidateId: "691",
+        referenceId: "1",
+        title: "x",
+      });
+      expect((result as { isError?: boolean }).isError).toBe(true);
+      expect(textOf(result)).toMatch(/5785/);
+      expect(apiSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("delete: republishes the array without the targeted reference", async () => {
+      registerCandidateTools(server);
+      const apiSpy = mockDtRefs([
+        { id: "5785", title: "Coach" },
+        { id: "5786", title: "Doublon" },
+      ]);
+      const result = await getHandler(
+        server,
+        "boond_candidates_reference_delete"
+      )({
+        candidateId: "691",
+        referenceId: "5786",
+      });
+      const refs = (apiSpy.mock.calls[1]?.[2] as PutBody).data.attributes.references;
+      expect(refs.map((r) => r.id)).toEqual(["5785"]);
+      expect(textOf(result)).toMatch(/1 référence\(s\) restante/);
+    });
+
+    it("delete: aborts without any API call when the user cancels the elicitation", async () => {
+      const elicitInput = vi.fn(async () => ({ action: "accept", content: { confirmation: "cancel" } }));
+      const s = {
+        registerTool: vi.fn(),
+        server: { getClientCapabilities: vi.fn(() => ({ elicitation: {} })), elicitInput },
+      } as unknown as McpServer;
+      registerCandidateTools(s);
+      const apiSpy = mockDtRefs([{ id: "5786", title: "Doublon" }]);
+      const result = await getHandler(
+        s,
+        "boond_candidates_reference_delete"
+      )({
+        candidateId: "691",
+        referenceId: "5786",
+      });
+      expect(elicitInput).toHaveBeenCalledOnce();
+      expect(apiSpy).not.toHaveBeenCalled();
+      expect(textOf(result)).toMatch(/annulée/);
+    });
+
+    it("delete: unknown referenceId is an error, with no PUT", async () => {
+      registerCandidateTools(server);
+      const apiSpy = mockDtRefs([{ id: "5785", title: "Coach" }]);
+      const result = await getHandler(
+        server,
+        "boond_candidates_reference_delete"
+      )({
+        candidateId: "691",
+        referenceId: "1",
+      });
+      expect((result as { isError?: boolean }).isError).toBe(true);
+      expect(apiSpy).toHaveBeenCalledTimes(1);
     });
   });
 

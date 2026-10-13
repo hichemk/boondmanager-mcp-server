@@ -3,7 +3,7 @@
 > Auto-generated from the server registrations. Do not edit by hand.
 > Regenerate with `npm run docs:tools` (CI fails if this file is stale).
 
-**238 tools** across **45 domains** · **24 prompts** · **48 resources** · **6 resource templates**.
+**241 tools** across **45 domains** · **24 prompts** · **48 resources** · **6 resource templates**.
 
 Hint legend: `read` (readOnlyHint), `write` (creates/updates), `delete` (destructiveHint), `idempotent` (idempotentHint), `open-world` (openWorldHint, e.g. paginated keyword search).
 
@@ -80,7 +80,7 @@ Hint legend: `read` (readOnlyHint), `write` (creates/updates), `delete` (destruc
 | `boond_calendars_get` | Détails d'un(e) calendrier | read · idempotent |
 | `boond_calendars_search` | Rechercher des calendriers | read · idempotent · open-world |
 
-### candidates (12)
+### candidates (15)
 
 | Tool | Title | Hints |
 |---|---|---|
@@ -92,6 +92,9 @@ Hint legend: `read` (readOnlyHint), `write` (creates/updates), `delete` (destruc
 | `boond_candidates_get` | Détails d'un(e) candidat | read · idempotent |
 | `boond_candidates_information` | Informations générales d'un candidat | read · idempotent |
 | `boond_candidates_positionings` | Positionnements d'un candidat | read · idempotent |
+| `boond_candidates_reference_create` | Créer une référence (expérience pro) sur un candidat | write |
+| `boond_candidates_reference_delete` | Supprimer une référence (expérience pro) d'un candidat | delete |
+| `boond_candidates_reference_update` | Modifier une référence (expérience pro) d'un candidat | write · idempotent |
 | `boond_candidates_search` | Rechercher des candidats | read · idempotent · open-world |
 | `boond_candidates_technical_data` | Compétences techniques d'un candidat | read · idempotent |
 | `boond_candidates_technical_data_update` | Mettre à jour le dossier technique d'un candidat | write · idempotent |

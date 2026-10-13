@@ -253,10 +253,25 @@ const REFERENCE_DELETE_DESCRIPTION = `Supprime une référence (expérience prof
 
 Returns : confirmation et nombre de références restantes. Un \`referenceId\` introuvable renvoie \`isError: true\` avec la liste des ID présents.`;
 
-type EmbeddedReference = Record<string, unknown> & { id?: string | number };
+export type EmbeddedReference = Record<string, unknown> & { id?: string | number };
 
-async function fetchTechnicalDataReferences(resourceId: string): Promise<EmbeddedReference[]> {
-  const response = await apiRequest(`/resources/${resourceId}/technical-data`);
+/**
+ * Owner of an embedded `references` array. Resources and candidates expose the
+ * same DT payload on `{apiPath}/{id}/technical-data`; only the collection path
+ * and the JSON:API type differ.
+ */
+export interface ReferenceOwner {
+  apiPath: "/resources" | "/candidates";
+  type: "resource" | "candidate";
+}
+
+const RESOURCE_OWNER: ReferenceOwner = { apiPath: "/resources", type: "resource" };
+
+export async function fetchTechnicalDataReferences(
+  owner: ReferenceOwner,
+  ownerId: string
+): Promise<EmbeddedReference[]> {
+  const response = await apiRequest(`${owner.apiPath}/${ownerId}/technical-data`);
   const entity = Array.isArray(response.data) ? response.data[0] : response.data;
   const refs = (entity?.attributes as { references?: unknown })?.references;
   return Array.isArray(refs) ? (refs as EmbeddedReference[]) : [];
@@ -278,13 +293,14 @@ export function normalizeReferenceForApi(ref: EmbeddedReference): EmbeddedRefere
   return out;
 }
 
-async function putTechnicalDataReferences(
-  resourceId: string,
+export async function putTechnicalDataReferences(
+  owner: ReferenceOwner,
+  ownerId: string,
   references: EmbeddedReference[]
 ): Promise<ReturnType<typeof apiRequest>> {
   const sanitized = references.map(normalizeReferenceForApi);
-  const body = buildJsonApiBody("resource", { references: sanitized }, resourceId);
-  return apiRequest(`/resources/${resourceId}/technical-data`, "PUT", body);
+  const body = buildJsonApiBody(owner.type, { references: sanitized }, ownerId);
+  return apiRequest(`${owner.apiPath}/${ownerId}/technical-data`, "PUT", body);
 }
 
 export function registerResourceTools(server: McpServer): void {
@@ -422,9 +438,9 @@ export function registerResourceTools(server: McpServer): void {
       const provided: Record<string, unknown> = Object.fromEntries(
         Object.entries(attrs).filter(([, v]) => v !== undefined)
       );
-      const current = await fetchTechnicalDataReferences(resourceId);
+      const current = await fetchTechnicalDataReferences(RESOURCE_OWNER, resourceId);
       const next = [...current, provided as EmbeddedReference];
-      const response = await putTechnicalDataReferences(resourceId, next);
+      const response = await putTechnicalDataReferences(RESOURCE_OWNER, resourceId, next);
       const entity = Array.isArray(response.data) ? response.data[0] : response.data;
       const refs = (entity?.attributes as { references?: EmbeddedReference[] })?.references ?? [];
       const created = refs[refs.length - 1];
@@ -457,7 +473,7 @@ export function registerResourceTools(server: McpServer): void {
       const provided: Record<string, unknown> = Object.fromEntries(
         Object.entries(attrs).filter(([, v]) => v !== undefined)
       );
-      const current = await fetchTechnicalDataReferences(resourceId);
+      const current = await fetchTechnicalDataReferences(RESOURCE_OWNER, resourceId);
       const idx = current.findIndex((r) => String(r.id) === String(referenceId));
       if (idx === -1) {
         return {
@@ -472,7 +488,7 @@ export function registerResourceTools(server: McpServer): void {
       }
       const next = [...current];
       next[idx] = { ...current[idx], ...provided };
-      const response = await putTechnicalDataReferences(resourceId, next);
+      const response = await putTechnicalDataReferences(RESOURCE_OWNER, resourceId, next);
       return {
         content: [
           {
@@ -510,7 +526,7 @@ export function registerResourceTools(server: McpServer): void {
           ],
         };
       }
-      const current = await fetchTechnicalDataReferences(resourceId);
+      const current = await fetchTechnicalDataReferences(RESOURCE_OWNER, resourceId);
       const next = current.filter((r) => String(r.id) !== String(referenceId));
       if (next.length === current.length) {
         return {
@@ -523,7 +539,7 @@ export function registerResourceTools(server: McpServer): void {
           ],
         };
       }
-      await putTechnicalDataReferences(resourceId, next);
+      await putTechnicalDataReferences(RESOURCE_OWNER, resourceId, next);
       return {
         content: [
           {
