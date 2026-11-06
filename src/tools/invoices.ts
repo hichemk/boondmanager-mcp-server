@@ -65,8 +65,28 @@ function invoiceRecordFromAmount(amount: number, taxRate?: number, note?: string
   };
 }
 
+/**
+ * The API stores `invoiceRecordType` as `{ reference, name }` and accepts
+ * `{ reference }` on write; a bare integer is silently stored as `null`
+ * ("Non défini" in the UI). Verified live on 2026-11-06. Accept both shapes
+ * from the model and send the object form.
+ */
+function normaliseInvoiceRecord(record: Record<string, unknown>): Record<string, unknown> {
+  const type = record.invoiceRecordType;
+  if (typeof type === "number" || (typeof type === "string" && /^\d+$/.test(type))) {
+    return { ...record, invoiceRecordType: { reference: Number(type) } };
+  }
+  return record;
+}
+
 function invoiceAttributes(params: Record<string, unknown>): Record<string, unknown> {
-  const { invoiceDate, amountExcludingTax, taxRate, note, ...attrs } = params;
+  const { invoiceDate, amountExcludingTax, taxRate, note, invoiceRecords, ...rest } = params;
+  const attrs: Record<string, unknown> = {
+    ...rest,
+    ...(Array.isArray(invoiceRecords)
+      ? { invoiceRecords: (invoiceRecords as Record<string, unknown>[]).map(normaliseInvoiceRecord) }
+      : {}),
+  };
   return {
     ...attrs,
     ...(invoiceDate ? { date: invoiceDate } : {}),

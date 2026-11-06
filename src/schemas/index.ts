@@ -1312,6 +1312,30 @@ const invoicePaymentMethodField = z
   .optional()
   .describe("Mode de règlement : ID de `boond://dictionary/paymentMethods`");
 
+// Billing period (`startDate` / `endDate` on the invoice). Verified live on
+// 2026-11-06: POST /invoices without them lands on the *current* month, whatever
+// `invoiceDate` says — an October invoice created in November read 01/11 → 30/11,
+// its PDF date range followed, and `activityDetails` linked the November CRA.
+const invoicePeriodDateField = (label: string) =>
+  z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional()
+    .describe(
+      `${label} de la période facturée (YYYY-MM-DD). Sans elle, BoondManager prend le mois en cours — pas le mois de \`invoiceDate\` : à renseigner pour facturer un mois antérieur. Pilote la plage de dates du PDF et le rattachement de l'activité (CRA) à la facture.`
+    );
+
+// Verified live on 2026-11-06: the API echoes `invoiceRecordType` as
+// `{ reference, name }` and accepts `{ reference }` on write; a bare integer is
+// stored as null ("Non défini" in the UI). `buildInvoiceBody` normalises the
+// integer form so the model can send either.
+const invoiceRecordsField = z
+  .array(z.record(z.string(), z.unknown()))
+  .optional()
+  .describe(
+    "Lignes de facture Boond. Chaque ligne : `description`, `quantity`, `amountExcludingTax` (prix unitaire HT), `taxRates: [20]` (requis — 422 `1017` sans lui), `invoiceRecordType: { reference: 1 }` (1 = Normale, la ligne de prestation issue des CRA ; un entier nu est converti). Sur une mise à jour, le tableau remplace toutes les lignes."
+  );
+
 export const InvoiceCreateSchema = z
   .object({
     reference: z.string().optional().describe("Référence de la facture"),
@@ -1321,6 +1345,8 @@ export const InvoiceCreateSchema = z
       "État de la facture : ID de `boond://dictionary/states/invoices` (ex: 0 = Création, 1 = Transmis au client)"
     ),
     invoiceDate: z.string().optional().describe("Date de facturation (YYYY-MM-DD)"),
+    startDate: invoicePeriodDateField("Début"),
+    endDate: invoicePeriodDateField("Fin"),
     expectedPaymentDate: z
       .string()
       .optional()
@@ -1329,7 +1355,7 @@ export const InvoiceCreateSchema = z
     paymentMethod: invoicePaymentMethodField,
     amountExcludingTax: z.number().optional().describe("Montant HT"),
     taxRate: z.number().optional().describe("Taux de TVA (%)"),
-    invoiceRecords: z.array(z.record(z.string(), z.unknown())).optional().describe("Lignes de facture Boond"),
+    invoiceRecords: invoiceRecordsField,
     invoicePayments: z.array(z.record(z.string(), z.unknown())).optional().describe("Paiements client de la facture"),
     note: z.string().optional().describe("Notes / commentaires"),
   })
@@ -1344,6 +1370,8 @@ export const InvoiceUpdateSchema = z
       "État de la facture : ID de `boond://dictionary/states/invoices` (ex: 0 = Création, 1 = Transmis au client)"
     ),
     invoiceDate: z.string().optional().describe("Date de facturation (YYYY-MM-DD)"),
+    startDate: invoicePeriodDateField("Début"),
+    endDate: invoicePeriodDateField("Fin"),
     expectedPaymentDate: z
       .string()
       .optional()
@@ -1352,7 +1380,7 @@ export const InvoiceUpdateSchema = z
     paymentMethod: invoicePaymentMethodField,
     amountExcludingTax: z.number().optional().describe("Montant HT"),
     taxRate: z.number().optional().describe("Taux de TVA (%)"),
-    invoiceRecords: z.array(z.record(z.string(), z.unknown())).optional().describe("Lignes de facture Boond"),
+    invoiceRecords: invoiceRecordsField,
     invoicePayments: z.array(z.record(z.string(), z.unknown())).optional().describe("Paiements client de la facture"),
     note: z.string().optional().describe("Notes"),
   })
