@@ -165,6 +165,81 @@ describe("registerInvoiceTools", () => {
     });
   });
 
+  it("forwards the billing period (startDate / endDate) as invoice attributes", async () => {
+    expect(
+      InvoiceCreateSchema.safeParse({ orderId: "7", startDate: "2026-10-01", endDate: "2026-10-31" }).success
+    ).toBe(true);
+    expect(InvoiceCreateSchema.safeParse({ orderId: "7", startDate: "01/10/2026" }).success).toBe(false);
+    expect(InvoiceUpdateSchema.safeParse({ id: "1", startDate: "2026-10-01", endDate: "2026-10-31" }).success).toBe(
+      true
+    );
+
+    registerInvoiceTools(server);
+    const call = vi.mocked(server.registerTool).mock.calls.find((c) => c[0] === "boond_invoices_update");
+    const handler = call?.[2] as (params: unknown) => Promise<unknown>;
+
+    await handler({ id: "1", startDate: "2026-10-01", endDate: "2026-10-31" });
+
+    expect(apiRequest).toHaveBeenCalledWith("/invoices/1/information", "PUT", {
+      data: {
+        type: "invoice",
+        attributes: { startDate: "2026-10-01", endDate: "2026-10-31" },
+        id: "1",
+      },
+    });
+  });
+
+  it("normalises an integer invoiceRecordType into the { reference } object the API stores", async () => {
+    registerInvoiceTools(server);
+    const call = vi.mocked(server.registerTool).mock.calls.find((c) => c[0] === "boond_invoices_create");
+    const handler = call?.[2] as (params: unknown) => Promise<unknown>;
+
+    await handler({
+      orderId: "7",
+      invoiceDate: "2026-10-31",
+      invoiceRecords: [
+        { description: "Prestation", quantity: 22, amountExcludingTax: 900, taxRates: [20], invoiceRecordType: 1 },
+        {
+          description: "Frais",
+          quantity: 1,
+          amountExcludingTax: 50,
+          taxRates: [20],
+          invoiceRecordType: { reference: 3 },
+        },
+        { description: "Sans type", quantity: 1, amountExcludingTax: 1, taxRates: [20] },
+      ],
+    });
+
+    expect(apiRequest).toHaveBeenCalledWith("/invoices", "POST", {
+      data: {
+        type: "invoice",
+        attributes: {
+          date: "2026-10-31",
+          invoiceRecords: [
+            {
+              description: "Prestation",
+              quantity: 22,
+              amountExcludingTax: 900,
+              taxRates: [20],
+              invoiceRecordType: { reference: 1 },
+            },
+            {
+              description: "Frais",
+              quantity: 1,
+              amountExcludingTax: 50,
+              taxRates: [20],
+              invoiceRecordType: { reference: 3 },
+            },
+            { description: "Sans type", quantity: 1, amountExcludingTax: 1, taxRates: [20] },
+          ],
+        },
+        relationships: {
+          order: { data: { id: "7", type: "order" } },
+        },
+      },
+    });
+  });
+
   it("sends the actual payment date in the same PUT as the state change", async () => {
     registerInvoiceTools(server);
     const call = vi.mocked(server.registerTool).mock.calls.find((c) => c[0] === "boond_invoices_update");
