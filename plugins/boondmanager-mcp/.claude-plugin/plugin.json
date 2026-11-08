@@ -111,6 +111,12 @@
       "title": "Libellés personnalisés du dictionnaire",
       "description": "Mapping libellé→ID pour les instances BoondManager aux dictionnaires personnalisés : JSON inline (commence par {) ou chemin vers un fichier JSON UTF-8. Ex: {\"action\":{\"contact\":{\"Call\":61}},\"state\":{\"candidate\":{\"Interviewed\":2}}}. Voir docs/dictionary-overrides.md.",
       "required": false
+    },
+    "upload_dirs": {
+      "type": "string",
+      "title": "Répertoires autorisés pour filePath",
+      "description": "Chemins absolus, séparés par des virgules, dont les fichiers (PDF, Office, images) peuvent être envoyés à BoondManager via boond_documents_create(filePath). Vide = téléversement local désactivé. Ex. : C:\\_Hichem\\_GoogleDrive\\datasense-group\\Activite\\Fournisseurs",
+      "required": false
     }
   }
 }

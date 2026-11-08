@@ -159,7 +159,7 @@ Three formats, three audiences — none of them is redundant:
 - **`.mcpb`** targets Claude Desktop, bundles `dist/` and runs it with `node`.
   Its `user_config` block is the source of truth for the configuration form.
 - **Claude Code plugin** targets the CLI/IDE, ships only two JSON files and
-  defers to the npm package. Same 14 options, generated from the `.mcpb`
+  defers to the npm package. Same 15 options, generated from the `.mcpb`
   manifest by `scripts/generate-plugin-manifest.mjs` (CI-checked for drift).
 - **MCP Registry** is the machine-readable index every other aggregator mirrors
   (LobeHub, Glama, PulseMCP). It describes the server, it does not install it.
