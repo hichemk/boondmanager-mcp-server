@@ -251,7 +251,7 @@ variable d'environnement a poser soi-meme.
 /plugin install boondmanager-mcp@boondmanager
 ```
 
-Claude Code affiche alors le formulaire des 14 options (identifiants, URL de
+Claude Code affiche alors le formulaire des 15 options (identifiants, URL de
 base, restrictions d'acces). Tout est optionnel a l'ecran, mais il faut
 renseigner **un** des trois modes d'authentification : le trio `User Token` +
 `Client Token` + `Client Key` (JWT genere automatiquement, recommande), ou le

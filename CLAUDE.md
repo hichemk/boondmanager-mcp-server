@@ -1759,7 +1759,7 @@ The server ships as a Claude Code plugin so installation there is a form, not a
 - **`manifest.json` stays the single source of truth.** Both plugin files are
   **generated** by `scripts/generate-plugin-manifest.mjs`
   (`npm run plugin:manifest`, CI-checked with `--check`). Two hand-written copies
-  of the same 14 options would diverge on the first option added — the failure
+  of the same 15 options would diverge on the first option added — the failure
   mode `TOOLS.md` has a drift check for. Every MCPB→plugin format difference
   lives in the generator: `user_config` → `userConfig` (the field is camelCase,
   the `${user_config.KEY}` *substitution* syntax is not), `display_name` →
@@ -1796,7 +1796,7 @@ The server ships as a Claude Code plugin so installation there is a form, not a
 ### Empty env values are "unconfigured" (both packaged channels)
 
 The MCPB manifest and the plugin `.mcp.json` both substitute
-`${user_config.KEY}` into **all fourteen** `BOOND_*` vars, so every var is
+`${user_config.KEY}` into **all fifteen** `BOOND_*` vars, so every var is
 *defined* even for options the user never touched — a half-filled form hands the
 server empty strings, not absent keys. Three shapes must therefore all read as
 "not set": `""`, whitespace only, and an unsubstituted `"${…}"`.
